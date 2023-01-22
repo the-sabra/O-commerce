@@ -1,7 +1,16 @@
+require('dotenv');
 const User = require('../models/user');
 const bcrypt=require('bcrypt');
-const e = require("express");
+const nodemailer=require('nodemailer');
+const sendgridTransport=require('nodemailer-sendgrid-transport');
+const transporter=nodemailer.createTransport(sendgridTransport({
+  auth:{
+    api_key:process.env.SENDGRID_KEY
+  }
+}))
+
 exports.getLogin = (req, res, next) => {
+  const e = require("express");
     let message=req.flash('error');
     if(message.length>0){
         message=message[0];
@@ -30,9 +39,9 @@ exports.getSignup = (req, res, next) => {
 };
 
 exports.postLogin = (req, res, next) => {
-   const email=req.body.email;
+  const email=req.body.email;
   const  password=req.body.password;
- User.findOne({email: email})
+User.findOne({email: email})
     .then(user => {
         if(!user){
             req.flash('error','Invalid Email or Password ');
@@ -63,7 +72,7 @@ exports.postSignup = (req, res, next) => {
           if (userDoc) {
               req.flash('error','E-Mail is already exists ,please pick another E-Mail');
               return res.redirect('/signup');
-          }f
+          }
           return bcrypt.hash(password, 12)
               .then(hashpass=>{
               const user = new User({
@@ -75,7 +84,13 @@ exports.postSignup = (req, res, next) => {
           });
       })
       .then(result=>{
-        return res.redirect('/login');
+        res.redirect('/login');
+        return transporter.sendMail({
+          to:email,
+          from:'omarsabra509@gmail.com',
+          subject:'Welcome in The new website builted by OMAR SABRA',
+          html:'<h1>You successfully signed up </h1>'
+        }).catch(err=>console.log(err))
   }).catch(err=>console.log(err));
 };
 

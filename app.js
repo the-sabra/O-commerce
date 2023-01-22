@@ -1,5 +1,5 @@
+require('dotenv/config');
 const path = require('path');
-const MONGODB_URL='mongodb+srv://omar:1234@cluster0.ppnz5mi.mongodb.net/shop';
 const express = require('express');
 const bodyParser = require('body-parser');
 const errorController = require('./controllers/error');
@@ -12,7 +12,7 @@ const csrfprotection=csrf();
 const mongodbStore=require('connect-mongodb-session')(session);
 const app = express();
 const store=new mongodbStore({
-    uri:MONGODB_URL,
+    uri:process.env.MONGODB_URL,
     collection:'sessions'
 })
 app.set('view engine', 'ejs');
@@ -58,7 +58,7 @@ app.use(shopRoutes);
 
 app.use(errorController.get404);
 
-mongoose.connect(MONGODB_URL).then(
+mongoose.connect(process.env.MONGODB_URL).then(
     res=>{
         app.listen(3000);
     }
