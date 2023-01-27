@@ -1,13 +1,16 @@
 require('dotenv');
 const User = require('../models/user');
 const bcrypt=require('bcrypt');
+const crypto = require("crypto");
 const nodemailer=require('nodemailer');
 const sendgridTransport=require('nodemailer-sendgrid-transport');
-const transporter=nodemailer.createTransport(sendgridTransport({
-  auth:{
-    api_key:process.env.SENDGRID_KEY
+const transporter=nodemailer.createTransport({
+  service:'gmail',
+  auth: {
+      user: 'omarsabra509@gmail.com',
+      pass: process.env.EMAIL_PASS
   }
-}))
+})
 
 exports.getLogin = (req, res, next) => {
   const e = require("express");
@@ -88,9 +91,9 @@ exports.postSignup = (req, res, next) => {
         return transporter.sendMail({
           to:email,
           from:'omarsabra509@gmail.com',
-          subject:'Welcome in The new website builted by OMAR SABRA',
+          subject:'Welcome in The new website built by OMAR SABRA',
           html:'<h1>You successfully signed up </h1>'
-        }).catch(err=>console.log(err))
+        }).catch(err=> console.log(err))
   }).catch(err=>console.log(err));
 };
 
@@ -100,3 +103,95 @@ exports.postLogout = (req, res, next) => {
     res.redirect('/');
   });
 };
+
+exports.getRest=(req,res,next)=>{
+  let message=req.flash('error');
+  if(message.length>0){
+      message=message[0];
+  }else{
+      message=null;
+  }
+  res.render('auth/reset-pass',{
+    path:'/rest',
+    pageTitle:'Rest Password',
+    errorMessage:message
+  })
+}
+
+exports.postRest=(req,res,next)=>{
+  crypto.randomBytes(32,(err,buffer)=>{
+    if(err){
+      console.log(err)
+      return res.redirect('/rest')
+    }
+    const token = buffer.toString('hex');
+    User.findOne({email: req.body.email})
+    .then(user=>{
+      if(!user){
+          req.flash('error','No account with that email found. ');
+          res.redirect('/reset');
+      }
+        user.resetToken=token;
+        user.resetTokenExpration=Date.now() + 3600000;
+        return user.save();
+    }).then(result=>{
+      res.redirect('/');
+      transporter.sendMail({
+        to:req.body.email,
+        from:'omarsabra509@gmail.com',
+        subject:'Password Reset',
+        html:`
+        <p>You requested a password reset</p>
+        <p>Click this <h1><a href="http://localhost:3000/reset/${token}">link</a></h1></p>
+        `
+      }).catch(err=>console.log(err))
+    })
+    .catch(err=>{
+      console.log(err);
+    })
+  })
+}
+exports.getNewPassword=(req,res,next)=> {
+  const token=req.params.token ;
+  User.findOne({resetToken:token,resetTokenExpration:{$gt:Date.now()}})
+      .then(user=>{
+        let message=req.flash('error');
+        console.log(message)
+        if(message.length>0){
+            message=message[0];
+        }else{
+            message=null;
+        }
+        res.render('auth/newPass',{
+          path:'/new-Password',
+          pageTitle:'New Password',
+          errorMessage:message,
+          userId:user._id.toString(),
+          token:token
+        })  
+      }).catch(err=>console.log(err));
+  
+}
+
+exports.postNewPassword=(req,res,next)=>{
+  const userId=req.body.userId;
+  const NewPass=req.body.NewPassword;
+  const ConPass=req.body.ConfirmPassword;
+  const token =req.body.token;
+  
+  User.findOne({_id:userId,resetToken:token,resetTokenExpration:{$gt:Date.now()}}).then(user=>{
+      if(NewPass !== ConPass){
+        req.flash('error','Don\'t Match Password');
+        res.redirect(`/reset/${token}`)
+      }
+      return bcrypt.hash(NewPass,12)
+      .then(hashPass=>{
+          user.password=hashPass;
+          user.resetToken=undefined;
+          user.resetTokenExpration=undefined;
+          user.save();
+          res.redirect('/login');
+      }).catch(err=>console.log(err));
+  })
+}
+
