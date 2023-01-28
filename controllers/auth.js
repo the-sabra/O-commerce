@@ -132,6 +132,7 @@ exports.postRest=(req,res,next)=>{
           res.redirect('/reset');
       }
         user.resetToken=token;
+        // the expration will take 60 min 
         user.resetTokenExpration=Date.now() + 3600000;
         return user.save();
     }).then(result=>{
