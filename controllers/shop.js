@@ -1,6 +1,10 @@
+const fs=require('fs');
+const path=require('path');
+const PDFDoc=require('pdfkit');
+const easyInvoice=require('easyinvoice');
 const Product = require('../models/product');
+const fileHelper=require('../util/Dfile');
 const Order = require('../models/order');
-
 exports.getProducts = (req, res, next) => {
   Product.find()
     .then(products => {
@@ -150,9 +154,70 @@ exports.getOrders = (req, res, next) => {
 
 exports.postDeleteOrder=(req,res,next)=>{
 const orderId =req.body.orderId;
+const invoiceName='invoice'+'-'+orderId+'.pdf';
   Order.findByIdAndRemove(orderId)
     .then(result=>{
+          fileHelper.delecteFile(`/data/invoices/${invoiceName}`)
             console.log("ORDER REMOVED");
             res.redirect('/orders');
           
 })}
+exports.getInvoice=(req,res,next)=>{
+  const orderId=req.params.orderId;
+  const invoiceName='invoice'+'-'+orderId+'.pdf';
+  Order.findById(orderId).then(async order=>{
+    if(!order){
+      return next(new Error('No Order Found'));
+    }
+    if(order.user.userId.toString() !== req.user._id.toString()){
+      return next(new Error('Unauthorized'));
+    }
+        /// this code below will consume memory 
+    const invoicePath=path.join('data','invoices',invoiceName);
+    // fs.readFile(invoicePath,(err,data)=>{
+    //   if(err){
+    //     return next(err);
+    //   }
+    //   res.setHeader('Content-Type','application/pdf');
+    //   res.setHeader('Content-Disposition',"inline; filename='"+invoiceName+"'");
+    //   res.send(data);
+    // })
+//-------------------------------------------
+      /// stream data code
+    // const file =fs.createReadStream(invoicePath);
+    // res.setHeader('Content-Type','application/pdf');
+    // res.setHeader('Content-Disposition',"inline; filename='"+invoiceName+"'");
+    // file.pipe(res);
+//-------------------------------------------
+    // // using a PDFkit
+    const pdfile=new PDFDoc();
+    res.setHeader('Content-Type','application/pdf');
+    res.setHeader('Content-Disposition',"inline; filename='"+invoiceName+"'");
+    pdfile.pipe(fs.createWriteStream(invoicePath));
+    pdfile.pipe(res);
+    pdfile.fontSize(20).text(`Invoice`,
+    {underline:1,
+      align: 'center'}
+    );
+        pdfile.moveDown();
+        pdfile.fontSize(18).text('Product',{align:'left'});
+        pdfile.moveUp();
+        pdfile.fontSize(18).text('price',{align:'center'});
+        pdfile.moveUp();
+        pdfile.fontSize(18).text('Quantity',{align:'right'});
+        let total=0;
+        order.products.forEach(prod=>{
+          total+= prod.product.price * prod.quantity;
+          pdfile.moveDown();
+          pdfile.text(`${prod.product.title}`,{align:'left'});
+          pdfile.moveUp();
+          pdfile.text(`${prod.product.price}`,{align:'center'});
+          pdfile.moveUp();
+            pdfile.text(`${prod.quantity}`,{align:'right'});
+          });
+          pdfile.moveDown();
+          pdfile.text('Total',{align:'center'})
+          pdfile.text(`$ ${total}`,{align:'center'})
+        pdfile.end();
+      }).catch(err=>next(err));
+}

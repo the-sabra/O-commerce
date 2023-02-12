@@ -16,7 +16,6 @@ router.get('/products',  authCheck ,adminController.getProducts);
 //-> /admin/add-product => POST
 router.post('/add-product', [
     check('title').isLength({min:4}).withMessage('invalid title'),
-    check('imageUrl').isURL().withMessage('invalid ImageUrl'),
     check('price').isFloat({min:5, max:100000}).trim().withMessage('price must be more than $5'),
     check('description').custom((value,{req})=>{
         const words=value.split(' ');
@@ -34,7 +33,6 @@ router.get('/edit-product/:productId',  authCheck ,adminController.getEditProduc
 //-> /admin/edit-product => POST
 router.post('/edit-product',[
     check('title').isLength({min:4}).withMessage('invalid title'),
-    check('imageUrl').isURL().withMessage('invalid ImageUrl'),
     check('price').isFloat({min:5, max:100000}).trim().withMessage('price must be more than $5'),
     check('description').custom((value,{req})=>{
         const words=value.split(' ');
