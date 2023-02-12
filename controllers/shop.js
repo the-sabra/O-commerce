@@ -1,10 +1,12 @@
-const fs=require('fs');
-const path=require('path');
-const PDFDoc=require('pdfkit');
-const easyInvoice=require('easyinvoice');
+const fs = require('fs');
+const path = require('path');
+const PDFDoc = require('pdfkit');
+const easyInvoice = require('easyinvoice');
 const Product = require('../models/product');
-const fileHelper=require('../util/Dfile');
+const chokidar=require('chokidar');
+const fileHelper = require('../util/files');
 const Order = require('../models/order');
+const { watch } = require('../models/product');
 exports.getProducts = (req, res, next) => {
   Product.find()
     .then(products => {
@@ -13,7 +15,7 @@ exports.getProducts = (req, res, next) => {
         prods: products,
         pageTitle: 'All Products',
         path: '/products',
-          isAuthenticated: req.session.isLoggedIn
+        isAuthenticated: req.session.isLoggedIn
       });
     })
     .catch(err => {
@@ -29,13 +31,13 @@ exports.getProduct = (req, res, next) => {
         product: product,
         pageTitle: product.title,
         path: '/products',
-          isAuthenticated: req.session.isLoggedIn
+        isAuthenticated: req.session.isLoggedIn
       });
     })
     .catch(err => {
-      const error= new Error(err);
+      const error = new Error(err);
       console.log(error);
-      error.httpStatusCode=500;
+      error.httpStatusCode = 500;
       return next(error);
     });
 };
@@ -50,15 +52,15 @@ exports.getIndex = (req, res, next) => {
       });
     })
     .catch(err => {
-      const error= new Error(err);
+      const error = new Error(err);
       console.log(error);
-      error.httpStatusCode=500;
+      error.httpStatusCode = 500;
       return next(error);
     });
 };
 
 exports.getCart = (req, res, next) => {
-    req.user
+  req.user
     .populate('cart.items.productId')
     .then(user => {
       const products = user.cart.items;
@@ -66,13 +68,13 @@ exports.getCart = (req, res, next) => {
         path: '/cart',
         pageTitle: 'Your Cart',
         products: products,
-          isAuthenticated: req.session.isLoggedIn
+        isAuthenticated: req.session.isLoggedIn
       });
     })
     .catch(err => {
-      const error= new Error(err);
+      const error = new Error(err);
       console.log(error);
-      error.httpStatusCode=500;
+      error.httpStatusCode = 500;
       return next(error);
     });
 };
@@ -97,15 +99,15 @@ exports.postCartDeleteProduct = (req, res, next) => {
       res.redirect('/cart');
     })
     .catch(err => {
-      const error= new Error(err);
+      const error = new Error(err);
       console.log(error);
-      error.httpStatusCode=500;
+      error.httpStatusCode = 500;
       return next(error);
     });
 };
 
 exports.postOrder = (req, res, next) => {
-    req.user
+  req.user
     .populate('cart.items.productId')
     .then(user => {
       const products = user.cart.items.map(i => {
@@ -127,9 +129,9 @@ exports.postOrder = (req, res, next) => {
       res.redirect('/orders');
     })
     .catch(err => {
-      const error= new Error(err);
+      const error = new Error(err);
       console.log(error);
-      error.httpStatusCode=500;
+      error.httpStatusCode = 500;
       return next(error);
     });
 };
@@ -141,39 +143,44 @@ exports.getOrders = (req, res, next) => {
         path: '/orders',
         pageTitle: 'Your Orders',
         orders: orders,
-          isAuthenticated: req.session.isLoggedIn
+        isAuthenticated: req.session.isLoggedIn
       });
     })
     .catch(err => {
-      const error= new Error(err);
+      const error = new Error(err);
       console.log(error);
-      error.httpStatusCode=500;
+      error.httpStatusCode = 500;
       return next(error);
     });
 };
 
-exports.postDeleteOrder=(req,res,next)=>{
-const orderId =req.body.orderId;
-const invoiceName='invoice'+'-'+orderId+'.pdf';
+exports.postDeleteOrder = (req, res, next) => {
+  const orderId = req.body.orderId;
+  const invoiceName = 'invoice' + '-' + orderId + '.pdf';
   Order.findByIdAndRemove(orderId)
-    .then(result=>{
-          fileHelper.delecteFile(`/data/invoices/${invoiceName}`)
-            console.log("ORDER REMOVED");
-            res.redirect('/orders');
-          
-})}
-exports.getInvoice=(req,res,next)=>{
-  const orderId=req.params.orderId;
-  const invoiceName='invoice'+'-'+orderId+'.pdf';
-  Order.findById(orderId).then(async order=>{
-    if(!order){
+    .then(result => {
+      if(fs.existsSync(path.join('data','invoices',invoiceName))){
+        fileHelper.delecteFile(path.join('data','invoices',invoiceName));
+        console.log("ORDER REMOVED");
+        res.redirect('/orders');
+      }else{
+      console.log("ORDER REMOVED");
+      res.redirect('/orders');
+      }
+    })
+}
+exports.getInvoice = (req, res, next) => {
+  const orderId = req.params.orderId;
+  const invoiceName = 'invoice' + '-' + orderId + '.pdf';
+  Order.findById(orderId).then(async order => {
+    if (!order) {
       return next(new Error('No Order Found'));
     }
-    if(order.user.userId.toString() !== req.user._id.toString()){
+    if (order.user.userId.toString() !== req.user._id.toString()) {
       return next(new Error('Unauthorized'));
     }
-        /// this code below will consume memory 
-    const invoicePath=path.join('data','invoices',invoiceName);
+    /// this code below will consume memory 
+    const invoicePath = path.join('data', 'invoices', invoiceName);
     // fs.readFile(invoicePath,(err,data)=>{
     //   if(err){
     //     return next(err);
@@ -182,42 +189,44 @@ exports.getInvoice=(req,res,next)=>{
     //   res.setHeader('Content-Disposition',"inline; filename='"+invoiceName+"'");
     //   res.send(data);
     // })
-//-------------------------------------------
-      /// stream data code
+    //-------------------------------------------
+    /// stream data code
     // const file =fs.createReadStream(invoicePath);
     // res.setHeader('Content-Type','application/pdf');
     // res.setHeader('Content-Disposition',"inline; filename='"+invoiceName+"'");
     // file.pipe(res);
-//-------------------------------------------
+    //-------------------------------------------
     // // using a PDFkit
-    const pdfile=new PDFDoc();
-    res.setHeader('Content-Type','application/pdf');
-    res.setHeader('Content-Disposition',"inline; filename='"+invoiceName+"'");
+    const pdfile = new PDFDoc();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', "inline; filename='" + invoiceName + "'");
     pdfile.pipe(fs.createWriteStream(invoicePath));
     pdfile.pipe(res);
     pdfile.fontSize(20).text(`Invoice`,
-    {underline:1,
-      align: 'center'}
+      {
+        underline: 1,
+        align: 'center'
+      }
     );
-        pdfile.moveDown();
-        pdfile.fontSize(18).text('Product',{align:'left'});
-        pdfile.moveUp();
-        pdfile.fontSize(18).text('price',{align:'center'});
-        pdfile.moveUp();
-        pdfile.fontSize(18).text('Quantity',{align:'right'});
-        let total=0;
-        order.products.forEach(prod=>{
-          total+= prod.product.price * prod.quantity;
-          pdfile.moveDown();
-          pdfile.text(`${prod.product.title}`,{align:'left'});
-          pdfile.moveUp();
-          pdfile.text(`${prod.product.price}`,{align:'center'});
-          pdfile.moveUp();
-            pdfile.text(`${prod.quantity}`,{align:'right'});
-          });
-          pdfile.moveDown();
-          pdfile.text('Total',{align:'center'})
-          pdfile.text(`$ ${total}`,{align:'center'})
-        pdfile.end();
-      }).catch(err=>next(err));
+    pdfile.moveDown();
+    pdfile.fontSize(18).text('Product', { align: 'left' });
+    pdfile.moveUp();
+    pdfile.fontSize(18).text('price', { align: 'center' });
+    pdfile.moveUp();
+    pdfile.fontSize(18).text('Quantity', { align: 'right' });
+    let total = 0;
+    order.products.forEach(prod => {
+      total += prod.product.price * prod.quantity;
+      pdfile.moveDown();
+      pdfile.text(`${prod.product.title}`, { align: 'left' });
+      pdfile.moveUp();
+      pdfile.text(`${prod.product.price}`, { align: 'center' });
+      pdfile.moveUp();
+      pdfile.text(`${prod.quantity}`, { align: 'right' });
+    });
+    pdfile.moveDown();
+    pdfile.text('Total', { align: 'center' })
+    pdfile.text(`$ ${total}`, { align: 'center' })
+    pdfile.end();
+  }).catch(err => next(err));
 }

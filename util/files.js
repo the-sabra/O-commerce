@@ -6,5 +6,6 @@ const delecteFile=(path)=>{
             throw err;
         }
     });
+    console.log('File Deleted successfully')
 }
 exports.delecteFile=delecteFile;
