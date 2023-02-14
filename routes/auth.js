@@ -11,8 +11,7 @@ router.get('/signup', authController.getSignup);
 
 router.get('/reset',authController.getRest)
 
-router.post('/login',
-[
+router.post('/login',[
     check('email').isEmail().withMessage('Please Enter a valid Email'),
     body('password').isLength({min:4})
 ] 

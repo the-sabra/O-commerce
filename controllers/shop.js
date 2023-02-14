@@ -7,23 +7,36 @@ const chokidar=require('chokidar');
 const fileHelper = require('../util/files');
 const Order = require('../models/order');
 const { watch } = require('../models/product');
+
+const PROD_PER_PAG= 1;
+
 exports.getProducts = (req, res, next) => {
-  Product.find()
-    .then(products => {
-      console.log(products);
+  const page= +req.query.page || 1;
+  let totalItem;
+  Product.find().countDocuments().then(numProducts=>{
+    totalItem=numProducts;
+    return Product.find()
+      .skip((page - 1) * PROD_PER_PAG)
+      .limit(PROD_PER_PAG);
+  }).then(products => {
       res.render('shop/product-list', {
         prods: products,
-        pageTitle: 'All Products',
+        pageTitle: 'All products',
         path: '/products',
-        isAuthenticated: req.session.isLoggedIn
+        totalProducts:totalItem,
+        currentPage:page,
+        hasNextPage:PROD_PER_PAG * page < totalItem,
+        hasPreviousPage:page>1,
+        nextPage:page+1,
+        previousPage:page-1,
+        lastPage:Math.ceil(totalItem/PROD_PER_PAG)
       });
-    })
-    .catch(err => {
+    }).catch(err => {
       console.log(err);
     });
 };
 
-exports.getProduct = (req, res, next) => {
+exports.getProductDetail = (req, res, next) => {
   const prodId = req.params.productId;
   Product.findById(prodId)
     .then(product => {
@@ -43,12 +56,25 @@ exports.getProduct = (req, res, next) => {
 };
 
 exports.getIndex = (req, res, next) => {
-  Product.find()
-    .then(products => {
+  const page= +req.query.page || 1;
+  let totalItem;
+  Product.find().countDocuments().then(numProducts=>{
+    totalItem=numProducts;
+    return Product.find()
+      .skip((page - 1) * PROD_PER_PAG)
+      .limit(PROD_PER_PAG);
+  }).then(products => {
       res.render('shop/index', {
         prods: products,
         pageTitle: 'Shop',
         path: '/',
+        totalProducts:totalItem,
+        currentPage:page,
+        hasNextPage:PROD_PER_PAG * page <totalItem,
+        hasPreviousPage:page>1,
+        nextPage:page+1,
+        previousPage:page-1,
+        lastPage:Math.ceil(totalItem/PROD_PER_PAG)
       });
     })
     .catch(err => {
