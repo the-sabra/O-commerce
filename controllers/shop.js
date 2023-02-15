@@ -6,8 +6,8 @@ const Product = require('../models/product');
 const chokidar=require('chokidar');
 const fileHelper = require('../util/files');
 const Order = require('../models/order');
-const { watch } = require('../models/product');
-
+const session = require('express-session');
+const stripe=require('stripe')('sk_test_51MbXs1KRs5JKDwbqcHIynogCYnfrgCtgeRebaGqgTOVuGDcK2SmIUWgrxhaNTW2yxWjBScNy60Od8kYCrtPnSgbq00b6rWf8rX');
 const PROD_PER_PAG= 1;
 
 exports.getProducts = (req, res, next) => {
@@ -131,8 +131,53 @@ exports.postCartDeleteProduct = (req, res, next) => {
       return next(error);
     });
 };
-
-exports.postOrder = (req, res, next) => {
+exports.getCheckout=(req,res,next)=>{
+  let products;
+  let total=0;
+  req.user
+    .populate('cart.items.productId')
+    .then(user => {
+      products = user.cart.items;
+      products.forEach(prod=>{
+        total+=prod.productId.price * prod.quantity;
+      });
+      return stripe.checkout.sessions.create({
+          payment_method_types:['card'],
+          mode: "payment",
+          line_items:products.map(p=>{
+            return {
+              quantity: p.quantity,
+              price_data: {
+                currency: "usd",
+                unit_amount: p.productId.price * 100 ,
+                product_data: {
+                  name: p.productId.title,
+                  description: p.productId.description,
+                },
+              },
+            };
+          }),
+          customer_email:req.user.email,
+          success_url:req.protocol+"://"+ req.get('host') + '/checkout/success',
+          cancel_url : req.protocol+"://"+ req.get('host') + '/checkout/cancel',
+            })
+    }).then(session=>{
+      res.render('shop/checkout', {
+        path: '/checkout',
+        pageTitle:'Checkout',
+        products: products,
+        totalSum:total,
+        sessionId:session.id,
+      });
+    }).catch(err => {
+      const error = new Error(err);
+      console.log(error);
+      error.httpStatusCode = 500;
+      console.log(err)
+      return next(error);
+    });
+}
+exports.getCheckoutSuccess = (req, res, next) => {
   req.user
     .populate('cart.items.productId')
     .then(user => {
