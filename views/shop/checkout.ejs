@@ -18,14 +18,12 @@
             </ul>
             <div class="centered">
                 <button class="btn" id="order-btn">Order Now!</button>
-                <script src="https://js.stripe.com/v3/"></script>
                 <script>
-                    var stripe=Stripe('pk_test_51MbXs1KRs5JKDwbqFztEPsUcnipvTZcgogEoVeohsckg03TA8Wpj02ChjC1ayXervx4pSzG4xnNB7ZA2d9ljrE1y00eQSZHFOR');
                     var orderBtn=document.getElementById('order-btn');
                     orderBtn.addEventListener('click',()=>{
-                        stripe.redirectToCheckout({
-                            sessionId:'<%= sessionId %>'
-                        })
+                        var token='<%=paymenToken%>';
+                        let iframURL = `https://accept.paymob.com/api/acceptance/iframes/732849?payment_token=${token}`;
+                        location.href = iframURL
                     })
 
                 </script>

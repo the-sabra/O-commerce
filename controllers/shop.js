@@ -10,6 +10,9 @@ const session = require('express-session');
 const stripe=require('stripe')('sk_test_51MbXs1KRs5JKDwbqcHIynogCYnfrgCtgeRebaGqgTOVuGDcK2SmIUWgrxhaNTW2yxWjBScNy60Od8kYCrtPnSgbq00b6rWf8rX');
 const PROD_PER_PAG= 1;
 
+const API = process.env.PAPI;
+const integrationID = +process.env.integrationID;
+
 exports.getProducts = (req, res, next) => {
   const page= +req.query.page || 1;
   let totalItem;
@@ -131,52 +134,141 @@ exports.postCartDeleteProduct = (req, res, next) => {
       return next(error);
     });
 };
-exports.getCheckout=(req,res,next)=>{
+exports.getCheckout = (req, res, next) => {
   let products;
-  let total=0;
+  let total = 0;
+  let theToken;
   req.user
-    .populate('cart.items.productId')
-    .then(user => {
+    .populate("cart.items.productId")
+    .then(async (user) => {
       products = user.cart.items;
-      products.forEach(prod=>{
-        total+=prod.productId.price * prod.quantity;
+      products.forEach((prod) => {
+        total += prod.productId.price * prod.quantity;
       });
-      return stripe.checkout.sessions.create({
-          payment_method_types:['card'],
-          mode: "payment",
-          line_items:products.map(p=>{
-            return {
-              quantity: p.quantity,
-              price_data: {
-                currency: "usd",
-                unit_amount: p.productId.price * 100 ,
-                product_data: {
-                  name: p.productId.title,
-                  description: p.productId.description,
-                },
-              },
-            };
-          }),
-          customer_email:req.user.email,
-          success_url:req.protocol+"://"+ req.get('host') + '/checkout/success',
-          cancel_url : req.protocol+"://"+ req.get('host') + '/checkout/cancel',
-            })
-    }).then(session=>{
-      res.render('shop/checkout', {
-        path: '/checkout',
-        pageTitle:'Checkout',
+
+      // return stripe.checkout.sessions.create({
+      //     payment_method_types:['card'],
+      //     mode: "payment",
+      //     line_items:products.map(p=>{
+      //       return {
+      //         quantity: p.quantity,
+      //         price_data: {
+      //           currency: "usd",
+      //           unit_amount: p.productId.price * 100 ,
+      //           product_data: {
+      //             name: p.productId.title,
+      //             description: p.productId.description,
+      //           },
+      //         },
+      //       };
+      //     }),
+      //     customer_email:req.user.email,
+      //     success_url:req.protocol+"://"+ req.get('host') + '/checkout/success',
+      //     cancel_url : req.protocol+"://"+ req.get('host') + '/checkout/cancel',
+      //       })
+      ///Authentication Request
+      const data = {
+        api_key: API,
+      };
+      return fetch("https://accept.paymob.com/api/auth/tokens", {
+        method: "post",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+        .then((res) => {
+          return res.json();
+        })
+        .then((json) => {
+          return json.token;
+        })
+        .catch((err) => console.log(err));
+    })
+    .then((token) => {
+      //Order Registration 
+      theToken = token;
+      // console.log(products)
+      let data;
+      data = {
+        auth_token: token,
+        delivery_needed: "false",
+        amount_cents: total * 100 + "",
+        currency: "EGP",
+        items: products.map((p) => {
+          return {
+            name: p.productId.title,
+            amount_cents: p.productId.price * 100 + "",
+            description: p.productId.description,
+            quantity: p.quantity + "",
+          };
+        }),
+      };
+      return fetch("https://accept.paymob.com/api/ecommerce/orders", {
+        method: "post",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+        .then((res) => {
+          return res.json();
+        })
+        .then((json) => {
+          return json.id;
+        })
+        .catch((err) => console.log(err));
+    })
+    //Payment Key
+    .then((id) => {
+      let data = {
+        auth_token: theToken,
+        amount_cents: total * 100 + "",
+        expiration: 3600,
+        order_id: id,
+        billing_data: {
+          apartment: "NA",
+          email: req.user.email,
+          floor: "NA",
+          first_name: "NA",
+          street: "NA",
+          building: "NA",
+          phone_number: "+86(8)9135210487",
+          shipping_method: "NA",
+          postal_code: "NA",
+          city: "NA",
+          country: "NA",
+          last_name: "NA",
+          state: "NA",
+        },
+        currency: "EGP",
+        integration_id: integrationID,
+      };
+      return fetch("https://accept.paymob.com/api/acceptance/payment_keys", {
+        method: "post",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+        .then((res) => {
+          return res.json();
+        })
+        .then((json) => {
+          return json.token;
+        })
+        .catch((err) => console.log(err));
+    })
+    .then((finalToken) => {
+      res.render("shop/checkout", {
+        path: "/checkout",
+        pageTitle: "Checkout",
         products: products,
-        totalSum:total,
-        sessionId:session.id,
+        totalSum: total,
+        paymenToken: finalToken,
       });
-    }).catch(err => {
+    })
+    .catch((err) => {
       const error = new Error(err);
       console.log(error);
       error.httpStatusCode = 500;
-      console.log(err)
       return next(error);
     });
-}
+};
 exports.getCheckoutSuccess = (req, res, next) => {
   req.user
     .populate('cart.items.productId')
