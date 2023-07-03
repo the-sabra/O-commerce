@@ -28,6 +28,7 @@ const fileStroge = multer.diskStorage({
         cb(null,'images');
     },
     filename:(req,file,cb)=>{
+        let fileisoDate;
         if(process.platform==='win32'){
             fileisoDate=new Date().toISOString().replace(/:/g, '-');
         }else{

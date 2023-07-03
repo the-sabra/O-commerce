@@ -1,7 +1,7 @@
 const express = require('express');
 const User=require('../models/user')
 const authController = require('../controllers/auth');
-const { check, body }=require('express-validator');
+const {check,body}=require('express-validator');
 
 const router = express.Router();
 
@@ -26,15 +26,14 @@ router.post('/signup',[
         }
         return true;
     }),
-    body('password','the password is less than 4 or more than 10 or define space')
-    .isLength({min:4,max:10})
-    .isAlphanumeric(),
-    body('confirmPassword').custom((value,{req})=>{
+    body('password','the password is less than 4')
+    .isLength({min:4}),
+    check('confirmPassword').custom((value,{req})=>{
         if(value !== req.body.password){
             throw new Error('Password have to match!');
         }
         return true;
-    }).trim()
+    })
 ],authController.postSignup);
 
 router.post('/logout', authController.postLogout);

@@ -29,7 +29,7 @@ exports.getProducts = (req, res, next) => {
         totalProducts:totalItem,
         currentPage:page,
         hasNextPage:PROD_PER_PAG * page < totalItem,
-        hasPreviousPage:page>1,
+        hasPreviousPage:page>1, 
         nextPage:page+1,
         previousPage:page-1,
         lastPage:Math.ceil(totalItem/PROD_PER_PAG)

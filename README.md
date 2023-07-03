@@ -1,39 +1,39 @@
-##
-# **EcommerceNoSQL**
+# O-commerce Overview
 
 An e-commerce website implemented using NoSQL databases.
 
-## **Getting Started**
+## Technologies Used
+- `JavaScript`
+- `Express`: Fast, unopinionated, minimalist web framework for Node.js
+- `mongoDB`: Document-oriented database that stores data in JSON-like documents.
+- `mongoose`: Object Data Modeling (ODM) library for MongoDB and Node.js. 
+## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
-### **Prerequisites**
 
-- [MongoDB](https://www.mongodb.com/)
-- [Node.js](https://nodejs.org/)
-- [NPM](https://www.npmjs.com/)
+## Installation
+1. Clone the repo to your local machine: `git clone https://github.com/omarsabra1/O-commerce.git `.
 
-### **Installing**
+2. Install the dependencies using NPM: ` cd O-commerce`
 
-Clone the repository and install the dependencies.
+3. Install the necessary dependencies: `npm install`.
 
-```bash
-git clone https://github.com/omarsabra1/EcommerceNoSQL.git cd EcommerceNoSQL npm install
-```
-Start the MongoDB server and the Node.js application.
-```bash
-npm start
-```
+## Running the Application
 
-The application should now be running on http://localhost:3000.
+- To run the app in development mode, use: `npm run start`.
+- To run the app in production mode, use: `npm run start-server`.
+## Code Structure
 
-## **Built With**
+The application code is organized as follows:
+- `app.js`: The entry point of the application.
+- `util/DB.js`: To connect mongoose with mongoDB.
+- `views`: This Folder contains the HTML templates for the application.
+- `public`: This Folder contains static files, such as CSS and JavaScript files.
+- `models`: This folder he define a mongoose schema files.
+- `authCheck/check-auth.js`: Verifies JWT tokens.
+-  `controllers`: This folder interact with the models to retrieve and save data.
+-  `routes`: This folder he mange routes for the all project.
 
-- [Node.js](https://nodejs.org/)
-- [Express.js](https://expressjs.com/)
-- [MongoDB](https://www.mongodb.com/)
-- [MONGOOSE](https://mongoosejs.com/)
-
-## **Author**
-
-Omar Sabra
+## Contact Information
+If you have any questions or feedback, please feel free to reach out to me on LinkedIn or via email.

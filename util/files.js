@@ -1,6 +1,6 @@
 const fs =require('fs');
 
-const delecteFile=(path)=>{
+const deleteFile=(path)=>{
     fs.unlink(path,err => {
         if(err){
             throw err;
@@ -8,4 +8,4 @@ const delecteFile=(path)=>{
     });
     console.log('File Deleted successfully')
 }
-exports.delecteFile=delecteFile;
+exports.deleteFile=deleteFile;
